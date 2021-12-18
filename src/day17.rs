@@ -1,13 +1,15 @@
 /// A lot of code was added (and not removed) since I assumed target  could be in the negative x
 /// direction.  I removed some of the code but left the rest
 use aoc_runner_derive::{aoc, aoc_generator};
+use std::ops::RangeInclusive;
 
 #[derive(Debug)]
 pub struct Target {
     near_x: i64,
     far_x: i64,
-    top_y: i64,
     bottom_y: i64,
+    x_range: RangeInclusive<i64>,
+    y_range: RangeInclusive<i64>,
 }
 
 #[derive(Default)]
@@ -60,20 +62,7 @@ impl Probe {
     }
 
     fn in_target(&self, target: &Target) -> bool {
-        let x_neg = self.position.x.is_negative();
-        if self.position.x.abs() > target.far_x.abs() && x_neg == target.far_x.is_negative() {
-            return false;
-        }
-        if self.position.x.abs() < target.near_x.abs() && x_neg == target.far_x.is_negative() {
-            return false;
-        }
-        if self.position.y > target.top_y {
-            return false;
-        }
-        if self.position.y < target.bottom_y {
-            return false;
-        }
-        true
+        target.x_range.contains(&self.position.x) && target.y_range.contains(&self.position.y)
     }
 
     fn missed_target(&self, target: &Target) -> bool {
@@ -121,12 +110,14 @@ pub fn input_generator(input: &str) -> Target {
     } else {
         (x1.min(x2), x1.max(x2))
     };
+    let (bottom_y, top_y) = (y1.min(y2), y1.max(y2));
 
     Target {
         near_x,
         far_x,
-        top_y: y1.max(y2),
-        bottom_y: y1.min(y2),
+        bottom_y,
+        x_range: near_x.min(far_x)..=near_x.max(far_x),
+        y_range: bottom_y..=top_y,
     }
 }
 
@@ -138,8 +129,9 @@ pub fn part1(target: &Target) -> u64 {
 #[aoc(day17, part2, day17_2)]
 pub fn part2(target: &Target) -> u64 {
     let mut count = 0;
+    let possible_ys: Vec<_> = target.vel_y_range().collect();
     for x in target.vel_x_range() {
-        for y in target.vel_y_range() {
+        for &y in &possible_ys {
             let mut probe = Probe::new(Vector { x, y });
             loop {
                 if probe.in_target(target) {
